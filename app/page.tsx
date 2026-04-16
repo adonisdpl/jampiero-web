@@ -1,166 +1,119 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 
-export default function LoginPage() {
-  const router  = useRouter()
-  const [email, setEmail]         = useState('')
-  const [password, setPassword]   = useState('')
-  const [fullName, setFullName]   = useState('')
-  const [isLogin, setIsLogin]     = useState(true)
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState('')
-  const [checking, setChecking]   = useState(true)
-  const [emailSent, setEmailSent] = useState(false)
-  const [sentTo, setSentTo]       = useState('')
+export default function HomePage() {
+  const router = useRouter()
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) await redirectByRole(data.session.user.id)
-      setChecking(false)
-    })
-  }, [])
+  return (
+    <div className="min-h-screen bg-[#FDF6EC]">
 
-  async function redirectByRole(userId: string) {
-    const { data: profile } = await supabase
-      .from('profiles').select('role').eq('id', userId).single()
-    if (profile?.role === 'barber') router.replace('/barber/dashboard')
-    else router.replace('/client')
-  }
-
-  async function handleAuth(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-        await redirectByRole(data.user.id)
-      } else {
-        if (!fullName) { setError('Entrez votre prénom et nom.'); setLoading(false); return }
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: 'https://jampiero-web.vercel.app/auth/callback'
-          }
-        })
-        if (error) throw error
-        setSentTo(email)
-        setEmailSent(true)
-      }
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (checking) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDF6EC]">
-      <div className="w-8 h-8 border-4 border-[#C0392B] border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
-
-  // ─── Écran confirmation email ────────────────────────────
-  if (emailSent) return (
-    <div className="min-h-screen bg-[#FDF6EC] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm text-center fade-in">
-        <div className="w-20 h-20 bg-[#C0392B] rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <span className="text-4xl">✉️</span>
+      {/* Hero */}
+      <div className="bg-[#C0392B] px-6 pt-12 pb-16 text-center">
+        <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-5">
+          <span className="text-4xl text-[#C0392B]">✂</span>
         </div>
-        <h1 className="text-2xl font-bold text-[#2C2C2C] mb-2">Vérifiez votre email</h1>
-        <p className="text-[#7B7B7B] text-sm mb-6 leading-relaxed">
-          Un lien de confirmation a été envoyé à<br />
-          <span className="font-semibold text-[#C0392B]">{sentTo}</span>
+        <h1 className="text-4xl font-bold italic text-white tracking-wide mb-1" style={{ fontFamily: 'Georgia, serif' }}>
+          Jampiero
+        </h1>
+        <p className="text-[#D4AC0D] text-xs tracking-[5px] uppercase mb-4">BarberoShop</p>
+        <p className="text-white/80 text-sm max-w-xs mx-auto leading-relaxed">
+          Le barbier de confiance de Genève — coupes précises, style latino, ambiance chaleureuse.
         </p>
 
-        <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5 mb-6 text-left space-y-3">
-          <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-2">Comment faire ?</p>
-          <div className="flex items-start gap-3">
-            <span className="w-6 h-6 bg-[#FADBD8] text-[#C0392B] rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
-            <p className="text-sm text-[#7B7B7B]">Ouvrez votre boîte email</p>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="w-6 h-6 bg-[#FADBD8] text-[#C0392B] rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
-            <p className="text-sm text-[#7B7B7B]">Cherchez un email de <span className="font-medium">Jampiero BarberoShop</span></p>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="w-6 h-6 bg-[#FADBD8] text-[#C0392B] rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
-            <p className="text-sm text-[#7B7B7B]">Cliquez sur le lien de confirmation</p>
-          </div>
-        </div>
-
-        <p className="text-xs text-[#BDBDBD] mb-4">Vous n'avez pas reçu l'email ? Vérifiez vos spams.</p>
-
+        {/* CTA principal */}
         <button
-          onClick={() => { setEmailSent(false); setIsLogin(true); setEmail(''); setPassword('') }}
-          className="w-full border border-[#E8D5C4] rounded-xl py-3 text-sm text-[#7B7B7B] hover:text-[#C0392B] hover:border-[#C0392B] transition-colors">
-          Retour à la connexion
+          onClick={() => router.push('/booking')}
+          className="mt-8 bg-[#D4AC0D] text-white rounded-2xl px-10 py-4 text-sm font-bold tracking-widest uppercase hover:bg-[#9A7D0A] transition-colors shadow-sm">
+          Réserver un rendez-vous
         </button>
       </div>
-    </div>
-  )
 
-  // ─── Écran connexion / inscription ───────────────────────
-  return (
-    <div className="min-h-screen bg-[#FDF6EC] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm fade-in">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-[#C0392B] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl text-white">✂</span>
+        {/* Horaires */}
+        <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
+          <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">🕐 Horaires d'ouverture</p>
+          <div className="space-y-2.5">
+            {[
+              { jour: 'Lundi — Vendredi', heure: '9h00 — 19h00', ouvert: true },
+              { jour: 'Samedi',           heure: '9h00 — 18h00', ouvert: true },
+              { jour: 'Dimanche',         heure: 'Fermé',         ouvert: false },
+            ].map(({ jour, heure, ouvert }) => (
+              <div key={jour} className="flex justify-between items-center text-sm">
+                <span className="text-[#7B7B7B]">{jour}</span>
+                <span className={`font-semibold ${ouvert ? 'text-[#2C2C2C]' : 'text-[#BDBDBD]'}`}>{heure}</span>
+              </div>
+            ))}
           </div>
-          <h1 className="text-3xl font-bold italic text-[#922B21] tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>
-            Jampiero
-          </h1>
-          <p className="text-xs tracking-[4px] text-[#D4AC0D] uppercase mt-1">BarberoShop</p>
-          <div className="w-12 h-0.5 bg-[#D4AC0D] mx-auto mt-3" />
         </div>
 
-        {/* Formulaire */}
-        <form onSubmit={handleAuth} className="bg-white rounded-2xl border border-[#E8D5C4] p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-[#C0392B] tracking-widest uppercase mb-5">
-            {isLogin ? 'Connexion' : 'Créer un compte'}
-          </h2>
+        {/* Adresse */}
+        <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
+          <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">📍 Nous trouver</p>
+          <p className="text-sm font-semibold text-[#2C2C2C] mb-1">12 Rue de Rive</p>
+          <p className="text-sm text-[#7B7B7B] mb-4">1204 Genève, Suisse</p>
+          <a
+            href="https://maps.google.com/?q=12+Rue+de+Rive+1204+Genève"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[#C0392B] border border-[#C0392B] rounded-xl px-4 py-2 hover:bg-[#FADBD8] transition-colors">
+            Ouvrir dans Google Maps →
+          </a>
+        </div>
 
-          {!isLogin && (
-            <input type="text" placeholder="Prénom et nom" value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
-          )}
-          <input type="email" placeholder="Adresse email" value={email}
-            onChange={e => setEmail(e.target.value)} required
-            className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
-          <input type="password" placeholder="Mot de passe" value={password}
-            onChange={e => setPassword(e.target.value)} required
-            className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 mb-4 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
+        {/* Contact */}
+        <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
+          <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">📞 Contact</p>
+          <div className="space-y-3">
+            <a href="tel:+41220000000" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
+              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base">📞</span>
+              <span className="text-[#2C2C2C] font-medium">+41 22 000 00 00</span>
+            </a>
+            <a href="mailto:info@jampiero.ch" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
+              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base">✉️</span>
+              <span className="text-[#2C2C2C] font-medium">info@jampiero.ch</span>
+            </a>
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
+              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base">📸</span>
+              <span className="text-[#2C2C2C] font-medium">@jampiero.barbershop</span>
+            </a>
+          </div>
+        </div>
 
-          {error && (
-            <p className="text-sm text-[#C0392B] bg-[#FADBD8] rounded-lg px-3 py-2 mb-4">{error}</p>
-          )}
-
-          <button type="submit" disabled={loading}
-            className="w-full bg-[#C0392B] text-white rounded-lg py-3 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors disabled:opacity-60">
-            {loading ? '...' : isLogin ? 'Se connecter' : 'Créer un compte'}
+        {/* Services */}
+        <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
+          <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">✂ Nos prestations</p>
+          <div className="space-y-2.5">
+            {[
+              { name: 'Coupe homme',   price: '30 CHF' },
+              { name: 'Barbe',         price: '25 CHF' },
+              { name: 'Coupe + Barbe', price: '50 CHF' },
+              { name: 'Coupe femme',   price: '45 CHF' },
+              { name: 'Coloration',    price: 'dès 70 CHF' },
+              { name: 'Soin',          price: '35 CHF' },
+            ].map(({ name, price }) => (
+              <div key={name} className="flex justify-between items-center text-sm py-1 border-b border-[#F2E8DC] last:border-0">
+                <span className="text-[#2C2C2C]">{name}</span>
+                <span className="font-semibold text-[#C0392B]">{price}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => router.push('/booking')}
+            className="w-full mt-4 bg-[#C0392B] text-white rounded-xl py-3 text-xs font-bold tracking-widest uppercase hover:bg-[#922B21] transition-colors">
+            Réserver maintenant
           </button>
+        </div>
 
-          <button type="button" onClick={() => { setIsLogin(!isLogin); setError('') }}
-            className="w-full mt-4 text-sm text-[#7B7B7B] hover:text-[#C0392B] transition-colors">
-            {isLogin ? "Pas encore de compte ? " : "Déjà un compte ? "}
-            <span className="text-[#C0392B] font-semibold">
-              {isLogin ? "S'inscrire" : "Se connecter"}
-            </span>
-          </button>
-        </form>
+      </div>
 
-        <p className="text-center text-xs text-[#BDBDBD] mt-6 tracking-widest">
-          República Dominicana 🇩🇴 · Genève
-        </p>
+      {/* Footer */}
+      <div className="text-center py-8 border-t border-[#E8D5C4]">
+        <p className="text-xs text-[#BDBDBD] tracking-widest mb-1">República Dominicana 🇩🇴 · Genève</p>
+        <a href="/barber/dashboard" className="text-xs text-[#BDBDBD] hover:text-[#C0392B] transition-colors">
+          Espace coiffeur →
+        </a>
       </div>
     </div>
   )
