@@ -43,7 +43,7 @@ export default function BarberDashboardPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.replace('/'); return }
+      if (!user) { router.replace('/barber/login'); return }
       const { data: barber } = await supabase
         .from('barbers').select('id, name').eq('profile_id', user.id).single()
       if (barber) { setBarberId(barber.id); setBarberName(barber.name) }
