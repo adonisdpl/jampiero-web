@@ -25,8 +25,7 @@ export default function BarberAgendaPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.replace('/'); return }
-      const { data: barber } = await supabase
+if (!user) { router.replace('/barber/login'); return }      const { data: barber } = await supabase
         .from('barbers').select('id').eq('profile_id', user.id).single()
       if (barber) setBarberId(barber.id)
     })

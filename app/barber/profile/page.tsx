@@ -34,7 +34,7 @@ export default function BarberProfilePage() {
   async function fetchProfile() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.replace('/'); return }
+    if (!user) { router.replace('/barber/login'); return }
     setEmail(user.email ?? '')
 
     const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
