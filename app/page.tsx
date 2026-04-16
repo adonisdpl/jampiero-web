@@ -43,13 +43,17 @@ export default function LoginPage() {
       } else {
         if (!fullName) { setError('Entrez votre prénom et nom.'); return }
         const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { full_name: fullName } }
-        })
-        if (error) throw error
-        setIsLogin(true)
-        setError('')
-        alert('Compte créé ! Vous pouvez maintenant vous connecter.')
+  email,
+  password,
+  options: {
+    data: { full_name: fullName },
+    emailRedirectTo: 'https://jampiero-web.vercel.app/auth/callback'
+  }
+})
+if (error) throw error
+// Afficher un message au lieu de connecter directement
+setError('')
+alert('Compte créé ! Vérifiez votre email pour confirmer votre inscription.')
       }
     } catch (e: any) {
       setError(e.message)
