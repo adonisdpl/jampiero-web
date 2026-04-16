@@ -45,6 +45,24 @@ export default function BookingPage() {
         client_id:    null,
       })
       if (error) throw error
+
+      // Email de confirmation si email fourni
+      if (clientEmail) {
+        await fetch('/api/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName,
+            clientEmail,
+            barberName:  barber!.name,
+            serviceName: service!.name,
+            date,
+            slot,
+            price: service!.price_chf,
+          })
+        })
+      }
+
       setStep('done')
     } catch (e: any) {
       setError(e.message)
@@ -83,7 +101,11 @@ export default function BookingPage() {
           className="w-full bg-[#C0392B] text-white rounded-xl py-3 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors">
           Retour à l'accueil
         </button>
-        <button onClick={() => { setStep('barber'); setBarber(null); setService(null); setDate(null); setSlot(null); setClientName(''); setClientPhone(''); setClientEmail('') }}
+        <button onClick={() => {
+          setStep('barber'); setBarber(null); setService(null)
+          setDate(null); setSlot(null); setClientName('')
+          setClientPhone(''); setClientEmail('')
+        }}
           className="w-full border border-[#E8D5C4] rounded-xl py-3 text-sm text-[#7B7B7B] hover:border-[#C0392B] hover:text-[#C0392B] transition-colors">
           Nouvelle réservation
         </button>
@@ -116,6 +138,8 @@ export default function BookingPage() {
         {step === 'info' && (
           <div>
             <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Vos coordonnées</p>
+
+            {/* Récap RDV */}
             <div className="bg-[#FADBD8] border border-[#C0392B]/20 rounded-2xl p-4 mb-5 space-y-1.5">
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Coiffeur</span><span className="font-medium">{barber?.name}</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Prestation</span><span className="font-medium">{service?.name}</span></div>
@@ -123,29 +147,40 @@ export default function BookingPage() {
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Heure</span><span className="font-medium text-[#C0392B]">{slot}</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Prix</span><span className="font-bold text-[#C0392B]">{service?.price_chf} CHF</span></div>
             </div>
+
+            {/* Formulaire client */}
             <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5 mb-4 space-y-4">
               <div>
-                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">Prénom et nom <span className="text-[#C0392B]">*</span></label>
-                <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Marie Dupont"
+                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
+                  Prénom et nom <span className="text-[#C0392B]">*</span>
+                </label>
+                <input type="text" value={clientName} onChange={e => setClientName(e.target.value)}
+                  placeholder="Marie Dupont"
                   className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
               </div>
               <div>
-                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">Téléphone <span className="text-[#C0392B]">*</span></label>
-                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+41 79 000 00 00"
+                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
+                  Téléphone <span className="text-[#C0392B]">*</span>
+                </label>
+                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)}
+                  placeholder="+41 79 000 00 00"
                   className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
               </div>
               <div>
                 <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
                   Email <span className="text-[#BDBDBD] font-normal normal-case">(optionnel — pour recevoir la confirmation)</span>
                 </label>
-                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="marie@email.com"
+                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)}
+                  placeholder="marie@email.com"
                   className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
               </div>
             </div>
+
             {error && <p className="text-sm text-[#C0392B] bg-[#FADBD8] rounded-xl px-4 py-2 mb-4">{error}</p>}
+
             <button onClick={confirm} disabled={loading}
               className="w-full bg-[#C0392B] text-white rounded-xl py-3.5 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors disabled:opacity-60">
-              {loading ? '...' : 'Confirmer le rendez-vous'}
+              {loading ? 'Envoi en cours...' : 'Confirmer le rendez-vous'}
             </button>
           </div>
         )}
@@ -167,7 +202,9 @@ function StepBarber({ onSelect }: { onSelect: (b: Barber) => void }) {
       {loading ? <Spinner /> : barbers.map(b => (
         <button key={b.id} onClick={() => onSelect(b)}
           className="w-full flex items-center gap-4 bg-white border border-[#E8D5C4] rounded-2xl p-4 mb-3 hover:border-[#C0392B] hover:bg-[#FADBD8] transition-all text-left">
-          <div className="w-12 h-12 rounded-full bg-[#FADBD8] border-2 border-[#C0392B] flex items-center justify-center text-[#C0392B] font-bold text-lg flex-shrink-0">{b.name[0]}</div>
+          <div className="w-12 h-12 rounded-full bg-[#FADBD8] border-2 border-[#C0392B] flex items-center justify-center text-[#C0392B] font-bold text-lg flex-shrink-0">
+            {b.name[0]}
+          </div>
           <span className="font-medium text-[#2C2C2C] flex-1">{b.name}</span>
           <span className="text-[#BDBDBD]">→</span>
         </button>
@@ -229,9 +266,11 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
       <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Choisissez une date</p>
       <div className="bg-white border border-[#E8D5C4] rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => { month===0?(setMonth(11),setYear(y=>y-1)):setMonth(m=>m-1); setSelDate(null) }} className="text-[#C0392B] text-xl px-2 hover:bg-[#FADBD8] rounded-lg">←</button>
+          <button onClick={() => { month===0?(setMonth(11),setYear(y=>y-1)):setMonth(m=>m-1); setSelDate(null) }}
+            className="text-[#C0392B] text-xl px-2 hover:bg-[#FADBD8] rounded-lg">←</button>
           <span className="font-semibold text-[#2C2C2C]">{MONTHS[month]} {year}</span>
-          <button onClick={() => { month===11?(setMonth(0),setYear(y=>y+1)):setMonth(m=>m+1); setSelDate(null) }} className="text-[#C0392B] text-xl px-2 hover:bg-[#FADBD8] rounded-lg">→</button>
+          <button onClick={() => { month===11?(setMonth(0),setYear(y=>y+1)):setMonth(m=>m+1); setSelDate(null) }}
+            className="text-[#C0392B] text-xl px-2 hover:bg-[#FADBD8] rounded-lg">→</button>
         </div>
         <div className="grid grid-cols-7 mb-2">
           {DAYS.map(d => <div key={d} className="text-center text-xs text-[#7B7B7B] py-1">{d}</div>)}

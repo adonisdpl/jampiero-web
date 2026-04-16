@@ -10,7 +10,9 @@ interface Booking {
   slot_time: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'done'
   note: string | null
-  client: { full_name: string; phone: string | null } | null
+  client_name:  string | null
+  client_phone: string | null
+  client_email: string | null
   service: { name: string; price_chf: number; duration_min: number }
 }
 
@@ -29,22 +31,22 @@ const STATUS_CLASS: Record<string, string> = {
 
 export default function BarberDashboardPage() {
   const router    = useRouter()
-  const [barberId, setBarberId] = useState<string | null>(null)
-  const [bookings, setBookings] = useState<Booking[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [selDate, setSelDate]   = useState(new Date())
+  const [barberId, setBarberId]   = useState<string | null>(null)
+  const [barberName, setBarberName] = useState('Jampiero')
+  const [bookings, setBookings]   = useState<Booking[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [selDate, setSelDate]     = useState(new Date())
 
   const ds = (d: Date) => d.toISOString().split('T')[0]
   const dateLabel = (d: Date) => d.toLocaleDateString('fr-CH', { weekday:'long', day:'numeric', month:'long' })
   const isToday   = ds(selDate) === ds(new Date())
 
-  // Récupère le barberId
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/'); return }
       const { data: barber } = await supabase
-        .from('barbers').select('id').eq('profile_id', user.id).single()
-      if (barber) setBarberId(barber.id)
+        .from('barbers').select('id, name').eq('profile_id', user.id).single()
+      if (barber) { setBarberId(barber.id); setBarberName(barber.name) }
     })
   }, [])
 
@@ -54,7 +56,7 @@ export default function BarberDashboardPage() {
     const { data } = await supabase
       .from('bookings')
       .select(`id, date, slot_time, status, note,
-        client:profiles(full_name, phone),
+        client_name, client_phone, client_email,
         service:services(name, price_chf, duration_min)`)
       .eq('barber_id', barberId)
       .eq('date', ds(selDate))
@@ -66,7 +68,6 @@ export default function BarberDashboardPage() {
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
-  // Realtime
   useEffect(() => {
     if (!barberId) return
     const ch = supabase.channel(`dashboard:${barberId}`)
@@ -76,8 +77,30 @@ export default function BarberDashboardPage() {
   }, [barberId, fetchBookings])
 
   async function updateStatus(id: string, status: 'confirmed' | 'done' | 'cancelled') {
-    if (!confirm(`${status === 'confirmed' ? 'Confirmer' : status === 'done' ? 'Marquer terminé' : 'Annuler'} ce RDV ?`)) return
+    const labels = { confirmed:'Confirmer', done:'Marquer terminé', cancelled:'Annuler' }
+    if (!confirm(`${labels[status]} ce RDV ?`)) return
+
     await supabase.from('bookings').update({ status }).eq('id', id)
+
+    // Email d'annulation si le client a fourni un email
+    if (status === 'cancelled') {
+      const booking = bookings.find(b => b.id === id)
+      if (booking?.client_email) {
+        await fetch('/api/send-cancellation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName:  booking.client_name,
+            clientEmail: booking.client_email,
+            barberName,
+            serviceName: booking.service.name,
+            date:        booking.date,
+            slot:        booking.slot_time.slice(0, 5),
+          })
+        })
+      }
+    }
+
     fetchBookings()
   }
 
@@ -89,7 +112,6 @@ export default function BarberDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#FDF6EC]">
-      {/* Header */}
       <div className="bg-[#C0392B] px-6 pt-6 pb-8">
         <div className="flex items-center justify-between mb-4">
           <p className="text-white italic text-lg" style={{ fontFamily: 'Georgia, serif' }}>Dashboard</p>
@@ -105,7 +127,6 @@ export default function BarberDashboardPage() {
           </div>
         </div>
 
-        {/* Navigation jour */}
         <div className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-3">
           <button onClick={prevDay} className="text-white text-xl hover:text-[#D4AC0D] transition-colors">←</button>
           <div className="text-center">
@@ -119,7 +140,6 @@ export default function BarberDashboardPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 -mt-2">
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="bg-white border border-[#E8D5C4] rounded-2xl p-4 text-center">
             <p className="text-2xl font-bold text-[#C0392B]">{bookings.length}</p>
@@ -135,7 +155,6 @@ export default function BarberDashboardPage() {
           </div>
         </div>
 
-        {/* Liste RDV */}
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-4 border-[#C0392B] border-t-transparent rounded-full animate-spin" />
@@ -150,32 +169,30 @@ export default function BarberDashboardPage() {
           <div className="space-y-3 pb-8">
             {bookings.map(b => (
               <div key={b.id} className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
-                {/* Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="text-3xl font-bold text-[#C0392B]">{b.slot_time.slice(0,5)}</p>
-                    <p className="font-semibold text-[#2C2C2C] mt-1">{b.client?.full_name ?? 'Client inconnu'}</p>
-                    {b.client?.phone && <p className="text-sm text-[#7B7B7B]">{b.client.phone}</p>}
+                    <p className="font-semibold text-[#2C2C2C] mt-1">{b.client_name ?? 'Client'}</p>
+                    {b.client_phone && <p className="text-sm text-[#7B7B7B]">📞 {b.client_phone}</p>}
+                    {b.client_email && <p className="text-sm text-[#7B7B7B]">✉ {b.client_email}</p>}
                   </div>
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${STATUS_CLASS[b.status]}`}>
                     {STATUS_LABEL[b.status]}
                   </span>
                 </div>
 
-                {/* Service */}
                 <div className="flex justify-between text-sm border-t border-[#F2E8DC] pt-3 mb-3">
                   <span className="text-[#7B7B7B]">{b.service.name}</span>
-                  <span className="font-semibold text-[#2C2C2C]">{b.service.duration_min} min · {b.service.price_chf} CHF</span>
+                  <span className="font-semibold">{b.service.duration_min} min · {b.service.price_chf} CHF</span>
                 </div>
 
                 {b.note && <p className="text-sm text-[#7B7B7B] italic mb-3">📝 {b.note}</p>}
 
-                {/* Actions */}
                 <div className="flex gap-2">
                   {b.status === 'pending' && (
                     <>
                       <button onClick={() => updateStatus(b.id, 'confirmed')}
-                        className="flex-1 bg-[#1D9E75] text-white rounded-xl py-2 text-xs font-semibold tracking-wide hover:bg-[#0F6E56] transition-colors">
+                        className="flex-1 bg-[#1D9E75] text-white rounded-xl py-2 text-xs font-semibold hover:bg-[#0F6E56] transition-colors">
                         Confirmer
                       </button>
                       <button onClick={() => updateStatus(b.id, 'cancelled')}
@@ -187,7 +204,7 @@ export default function BarberDashboardPage() {
                   {b.status === 'confirmed' && (
                     <>
                       <button onClick={() => updateStatus(b.id, 'done')}
-                        className="flex-1 bg-[#D4AC0D] text-white rounded-xl py-2 text-xs font-semibold tracking-wide hover:bg-[#9A7D0A] transition-colors">
+                        className="flex-1 bg-[#D4AC0D] text-white rounded-xl py-2 text-xs font-semibold hover:bg-[#9A7D0A] transition-colors">
                         Marquer terminé
                       </button>
                       <button onClick={() => updateStatus(b.id, 'cancelled')}
