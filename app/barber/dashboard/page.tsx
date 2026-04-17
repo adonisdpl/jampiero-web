@@ -37,7 +37,12 @@ export default function BarberDashboardPage() {
   const [loading, setLoading]     = useState(true)
   const [selDate, setSelDate]     = useState(new Date())
 
-  const ds = (d: Date) => d.toISOString().split('T')[0]
+  const ds = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
   const dateLabel = (d: Date) => d.toLocaleDateString('fr-CH', { weekday:'long', day:'numeric', month:'long' })
   const isToday   = ds(selDate) === ds(new Date())
 

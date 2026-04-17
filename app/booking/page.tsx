@@ -262,7 +262,12 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
   const [selSlot, setSelSlot] = useState<string | null>(null)
   const [taken, setTaken]     = useState<string[]>([])
   const [loadingSlots, setLS] = useState(false)
-  const ds = (d: Date) => d.toISOString().split('T')[0]
+  const ds = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
   async function pickDate(d: Date) {
     const s = ds(d); setSelDate(s); setSelSlot(null); setLS(true)

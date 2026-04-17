@@ -21,7 +21,12 @@ export default function BarberAgendaPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState<string | null>(null)
 
-  const ds = (d: Date) => d.toISOString().split('T')[0]
+  const ds = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
