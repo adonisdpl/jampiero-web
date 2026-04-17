@@ -25,7 +25,7 @@ export default function HomePage() {
         <button
           onClick={() => router.push('/booking')}
           className="mt-8 bg-[#D4AC0D] text-white rounded-2xl px-10 py-4 text-sm font-bold tracking-widest uppercase hover:bg-[#9A7D0A] transition-colors shadow-sm">
-          Réserver un rendez-vous
+          Prendre un rendez-vous
         </button>
       </div>
 
