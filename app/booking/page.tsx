@@ -30,46 +30,68 @@ export default function BookingPage() {
   const stepIdx = steps.indexOf(step)
 
   async function confirm() {
-  if (!clientName || !clientPhone) { setError('Veuillez remplir votre prénom et téléphone.'); return }
-  setLoading(true); setError('')
-  try {
-    const { data, error } = await supabase.from('bookings').insert({
-      barber_id:    barber!.id,
-      service_id:   service!.id,
-      date,
-      slot_time:    slot + ':00',
-      status:       'pending',
-      client_name:  clientName,
-      client_phone: clientPhone,
-      client_email: clientEmail || null,
-      client_id:    null,
-    }).select('id, cancel_token').single()
-    if (error) throw error
+    if (!clientName || !clientPhone) { setError('Veuillez remplir votre prénom et téléphone.'); return }
+    setLoading(true); setError('')
+    try {
+      const { data, error } = await supabase.from('bookings').insert({
+        barber_id:    barber!.id,
+        service_id:   service!.id,
+        date,
+        slot_time:    slot + ':00',
+        status:       'pending',
+        client_name:  clientName,
+        client_phone: clientPhone,
+        client_email: clientEmail || null,
+        client_id:    null,
+      }).select('id, cancel_token').single()
+      if (error) throw error
 
-    // Email de confirmation avec lien d'annulation
-    if (clientEmail) {
-      await fetch('/api/send-confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientName,
-          clientEmail,
-          barberName:  barber!.name,
-          serviceName: service!.name,
-          date,
-          slot,
-          price:       service!.price_chf,
-          cancelToken: data.cancel_token,
+      // Email de confirmation client avec lien d'annulation
+      if (clientEmail) {
+        await fetch('/api/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName,
+            clientEmail,
+            barberName:  barber!.name,
+            serviceName: service!.name,
+            date,
+            slot,
+            price:       service!.price_chf,
+            cancelToken: data.cancel_token,
+          })
         })
-      })
+      }
+
+      // Notification email au coiffeur
+      const { data: barberData } = await supabase
+        .from('barbers').select('email').eq('id', barber!.id).single()
+
+      if (barberData?.email) {
+        await fetch('/api/send-barber-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            barberEmail:  barberData.email,
+            barberName:   barber!.name,
+            clientName,
+            clientPhone,
+            clientEmail:  clientEmail || null,
+            serviceName:  service!.name,
+            date,
+            slot,
+          })
+        })
+      }
+
+      setStep('done')
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
     }
-    setStep('done')
-  } catch (e: any) {
-    setError(e.message)
-  } finally {
-    setLoading(false)
   }
-}
 
   if (step === 'done') return (
     <div className="min-h-screen bg-[#FDF6EC] flex flex-col items-center justify-center p-6 text-center">
@@ -138,8 +160,6 @@ export default function BookingPage() {
         {step === 'info' && (
           <div>
             <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Vos coordonnées</p>
-
-            {/* Récap RDV */}
             <div className="bg-[#FADBD8] border border-[#C0392B]/20 rounded-2xl p-4 mb-5 space-y-1.5">
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Coiffeur</span><span className="font-medium">{barber?.name}</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Prestation</span><span className="font-medium">{service?.name}</span></div>
@@ -147,8 +167,6 @@ export default function BookingPage() {
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Heure</span><span className="font-medium text-[#C0392B]">{slot}</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Prix</span><span className="font-bold text-[#C0392B]">{service?.price_chf} CHF</span></div>
             </div>
-
-            {/* Formulaire client */}
             <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5 mb-4 space-y-4">
               <div>
                 <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
@@ -175,9 +193,7 @@ export default function BookingPage() {
                   className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
               </div>
             </div>
-
             {error && <p className="text-sm text-[#C0392B] bg-[#FADBD8] rounded-xl px-4 py-2 mb-4">{error}</p>}
-
             <button onClick={confirm} disabled={loading}
               className="w-full bg-[#C0392B] text-white rounded-xl py-3.5 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors disabled:opacity-60">
               {loading ? 'Envoi en cours...' : 'Confirmer le rendez-vous'}
@@ -292,7 +308,7 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
       </div>
       {selDate && (
         <div>
-          <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-3">Créneaux disponibles</p>
+          <p className="text-xs font-semibold text-[#C0392B] tracking-widests uppercase mb-3">Créneaux disponibles</p>
           {loadingSlots ? <Spinner /> : (
             <div className="flex flex-wrap gap-2 mb-4">
               {SLOTS.map(s => {
