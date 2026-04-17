@@ -4,13 +4,15 @@ import { NextResponse } from 'next/server'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
-  const { clientName, clientEmail, barberName, serviceName, date, slot, price } = await req.json()
+  const { clientName, clientEmail, barberName, serviceName, date, slot, price, cancelToken } = await req.json()
 
   if (!clientEmail) return NextResponse.json({ ok: true })
 
   const dateLabel = new Date(date + 'T12:00').toLocaleDateString('fr-CH', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
+
+  const cancelUrl = `https://jampiero-web.vercel.app/cancel?token=${cancelToken}`
 
   const html = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#FDF6EC;border-radius:16px;overflow:hidden">
@@ -33,6 +35,15 @@ export async function POST(req: Request) {
         <p style="color:#7B7B7B;font-size:13px;line-height:1.6">En cas d'empêchement, contactez-nous le plus tôt possible :</p>
         <p style="color:#7B7B7B;font-size:13px">📞 <a href="tel:+41220000000" style="color:#C0392B">+41 22 000 00 00</a></p>
         <p style="color:#7B7B7B;font-size:13px">📍 12 Rue de Rive, 1204 Genève</p>
+
+        <div style="border-top:1px solid #E8D5C4;margin-top:20px;padding-top:20px;text-align:center">
+          <p style="color:#7B7B7B;font-size:12px;margin-bottom:12px">Besoin d'annuler votre rendez-vous ?</p>
+          <a href="${cancelUrl}"
+            style="display:inline-block;background:#FDF6EC;color:#C0392B;border:1px solid #C0392B;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:1px">
+            Annuler mon rendez-vous
+          </a>
+          <p style="color:#BDBDBD;font-size:11px;margin-top:8px">Ce lien est valable jusqu'à la date du rendez-vous</p>
+        </div>
       </div>
       <div style="background:#922B21;padding:16px;text-align:center">
         <p style="color:white;font-size:11px;margin:0;opacity:0.8">República Dominicana 🇩🇴 · Genève</p>

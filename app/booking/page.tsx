@@ -30,46 +30,46 @@ export default function BookingPage() {
   const stepIdx = steps.indexOf(step)
 
   async function confirm() {
-    if (!clientName || !clientPhone) { setError('Veuillez remplir votre prénom et téléphone.'); return }
-    setLoading(true); setError('')
-    try {
-      const { error } = await supabase.from('bookings').insert({
-        barber_id:    barber!.id,
-        service_id:   service!.id,
-        date,
-        slot_time:    slot + ':00',
-        status:       'pending',
-        client_name:  clientName,
-        client_phone: clientPhone,
-        client_email: clientEmail || null,
-        client_id:    null,
-      })
-      if (error) throw error
+  if (!clientName || !clientPhone) { setError('Veuillez remplir votre prénom et téléphone.'); return }
+  setLoading(true); setError('')
+  try {
+    const { data, error } = await supabase.from('bookings').insert({
+      barber_id:    barber!.id,
+      service_id:   service!.id,
+      date,
+      slot_time:    slot + ':00',
+      status:       'pending',
+      client_name:  clientName,
+      client_phone: clientPhone,
+      client_email: clientEmail || null,
+      client_id:    null,
+    }).select('id, cancel_token').single()
+    if (error) throw error
 
-      // Email de confirmation si email fourni
-      if (clientEmail) {
-        await fetch('/api/send-confirmation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientName,
-            clientEmail,
-            barberName:  barber!.name,
-            serviceName: service!.name,
-            date,
-            slot,
-            price: service!.price_chf,
-          })
+    // Email de confirmation avec lien d'annulation
+    if (clientEmail) {
+      await fetch('/api/send-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName,
+          clientEmail,
+          barberName:  barber!.name,
+          serviceName: service!.name,
+          date,
+          slot,
+          price:       service!.price_chf,
+          cancelToken: data.cancel_token,
         })
-      }
-
-      setStep('done')
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
+      })
     }
+    setStep('done')
+  } catch (e: any) {
+    setError(e.message)
+  } finally {
+    setLoading(false)
   }
+}
 
   if (step === 'done') return (
     <div className="min-h-screen bg-[#FDF6EC] flex flex-col items-center justify-center p-6 text-center">
