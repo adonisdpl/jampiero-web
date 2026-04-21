@@ -7,10 +7,24 @@ import { supabase } from '@/lib/supabase'
 interface Barber  { id: string; name: string }
 interface Service { id: string; name: string; duration_min: number; price_chf: number }
 
-const SLOTS = [
-  '09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30',
-  '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
-  '18:00','18:30','19:00','19:30']
+// Créneaux selon le jour (lun-ven vs sam)
+function getSlotsForDate(dateStr: string): string[] {
+  const day = new Date(dateStr + 'T12:00').getDay() // 0=dim, 6=sam
+  if (day === 6) {
+    // Samedi : 09h00 - 19h00
+    return [
+      '09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30',
+      '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
+      '18:00','18:30'
+    ]
+  }
+  // Lundi - Vendredi : 10h00 - 20h00
+  return [
+    '10:00','10:30','11:00','11:30','12:00','12:30',
+    '14:00','14:30','15:00','15:30','16:00','16:30',
+    '17:00','17:30','18:00','18:30','19:00','19:30'
+  ]
+}
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
 
@@ -319,7 +333,7 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
           <p className="text-xs font-semibold text-[#C0392B] tracking-widests uppercase mb-3">Créneaux disponibles</p>
           {loadingSlots ? <Spinner /> : (
             <div className="flex flex-wrap gap-2 mb-4">
-              {SLOTS.map(s => {
+              {getSlotsForDate(selDate!).map(s => {
                 const isTaken = taken.includes(s), isSel = s===selSlot
                 return (
                   <button key={s} disabled={isTaken} onClick={() => setSelSlot(s)}

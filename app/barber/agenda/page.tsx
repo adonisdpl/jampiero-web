@@ -4,10 +4,24 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const SLOTS = [
-  '09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30',
-  '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
-  '18:00','18:30','19:00','19:30']
+// Créneaux selon le jour (lun-ven vs sam)
+function getSlotsForDate(dateStr: string): string[] {
+  const day = new Date(dateStr + 'T12:00').getDay() // 0=dim, 6=sam
+  if (day === 6) {
+    // Samedi : 09h00 - 19h00
+    return [
+      '09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30',
+      '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
+      '18:00','18:30'
+    ]
+  }
+  // Lundi - Vendredi : 10h00 - 20h00
+  return [
+    '10:00','10:30','11:00','11:30','12:00','12:30',
+    '14:00','14:30','15:00','15:30','16:00','16:30',
+    '17:00','17:30','18:00','18:30','19:00','19:30'
+  ]
+}
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
 
@@ -48,7 +62,7 @@ if (!user) { router.replace('/barber/login'); return }      const { data: barber
     ])
     const blockedSet = new Set((blocked ?? []).map((r: any) => r.slot_time.slice(0,5)))
     const bookedSet  = new Set((booked  ?? []).map((r: any) => r.slot_time.slice(0,5)))
-    setSlots(SLOTS.map(t => ({ time:t, isBlocked: blockedSet.has(t), isBooked: bookedSet.has(t) })))
+    setSlots(getSlotsForDate(selDate!).map(t => ({ time:t, isBlocked: blockedSet.has(t), isBooked: bookedSet.has(t) })))
     setLoading(false)
   }, [barberId])
 
