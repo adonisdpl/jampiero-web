@@ -28,10 +28,14 @@ function ds(d: Date) {
 }
 
 interface SlotState { time: string; isBlocked: boolean; isBooked: boolean }
+interface BarberOption { id: string; name: string }
 
 export default function BarberAgendaPage() {
   const router = useRouter()
+  const [isAdmin, setIsAdmin] = useState(false)
   const [barberId, setBarberId] = useState<string | null>(null)
+  const [allBarbers, setAllBarbers] = useState<BarberOption[]>([])
+
   const today = new Date(); today.setHours(0,0,0,0)
   const [year, setYear]       = useState(today.getFullYear())
   const [month, setMonth]     = useState(today.getMonth())
@@ -43,8 +47,19 @@ export default function BarberAgendaPage() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/barber/login'); return }
-      const { data: barber } = await supabase.from('barbers').select('id').eq('profile_id', user.id).single()
-      if (barber) setBarberId(barber.id)
+
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+
+      if (profile?.role === 'super_admin') {
+        setIsAdmin(true)
+        const { data: bs } = await supabase.from('barbers').select('id, name').order('name')
+        const list = (bs as any) ?? []
+        setAllBarbers(list)
+        if (list.length > 0) setBarberId(list[0].id)
+      } else {
+        const { data: barber } = await supabase.from('barbers').select('id').eq('profile_id', user.id).single()
+        if (barber) setBarberId(barber.id)
+      }
     })
   }, [])
 
@@ -106,53 +121,60 @@ export default function BarberAgendaPage() {
   const freeCount    = slots.filter(s => !s.isBlocked && !s.isBooked).length
   const bookedCount  = slots.filter(s => s.isBooked).length
   const blockedCount = slots.filter(s => s.isBlocked).length
-  const todayStr     = ds(new Date())
 
   return (
     <div className="min-h-screen bg-[#0D0D0D]">
       <div className="bg-[#1A1A1A] border-b border-[#2E2E2E] px-6 pt-6 pb-5">
         <div className="flex items-center justify-between">
-          <button onClick={() => router.push('/barber/dashboard')} className="text-[#888] text-sm hover:text-[#D4AC0D] transition-colors">← Dashboard</button>
+          <button onClick={() => router.push('/barber/dashboard')} className="text-[#888] text-sm hover:text-[#D4AC0D] transition-colors">
+            ← Dashboard
+          </button>
           <p className="text-[#F0EDE8] italic text-lg font-bold" style={{ fontFamily: 'Georgia, serif' }}>Agenda</p>
-          <div className="w-20" />
+          {isAdmin ? (
+            <button onClick={() => router.push('/barber/admin')}
+              className="text-[#D4AC0D] text-sm border border-[#D4AC0D] rounded-lg px-3 py-1.5 hover:bg-[#1A1500] transition-colors">
+              ⚙ Admin
+            </button>
+          ) : <div className="w-16" />}
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 pb-12">
+      <div className="max-w-lg mx-auto px-4 py-4">
+
+        {/* Sélecteur coiffeur (admin only) */}
+        {isAdmin && (
+          <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4 mb-4">
+            <label className="text-xs text-[#D4AC0D] tracking-widest uppercase block mb-2">Coiffeur</label>
+            <select value={barberId ?? ''} onChange={e => { setBarberId(e.target.value); setSelDate(null) }}
+              className="w-full border border-[#2E2E2E] rounded-lg px-4 py-3 text-sm bg-[#0D0D0D] text-[#F0EDE8] outline-none focus:border-[#D4AC0D]">
+              {allBarbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+        )}
+
         {/* Calendrier */}
         <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4 mb-4">
           <div className="flex items-center justify-between mb-4">
             <button onClick={prevMonth} className="text-[#D4AC0D] text-xl px-2 hover:bg-[#1A1500] rounded-lg transition-colors">←</button>
-            <span className="font-semibold text-[#F0EDE8]">{MONTHS[month]} {year}</span>
+            <p className="font-semibold text-[#F0EDE8]">{MONTHS[month]} {year}</p>
             <button onClick={nextMonth} className="text-[#D4AC0D] text-xl px-2 hover:bg-[#1A1500] rounded-lg transition-colors">→</button>
           </div>
-
-          {/* Légende */}
-          <div className="flex gap-4 mb-3 justify-center">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#1D9E75]" /><span className="text-xs text-[#888]">Libre</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#C0392B]" /><span className="text-xs text-[#888]">Bloqué</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#D4AC0D]" /><span className="text-xs text-[#888]">Réservé</span></div>
-          </div>
-
           <div className="grid grid-cols-7 mb-2">
             {DAYS.map(d => <div key={d} className="text-center text-xs text-[#555] tracking-wider py-1">{d}</div>)}
           </div>
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 gap-1">
             {Array(firstDow).fill(null).map((_,i) => <div key={'e'+i} />)}
             {Array(daysInMonth).fill(null).map((_,i) => {
               const d    = new Date(year, month, i+1)
               const date = ds(d)
-              const isPast   = d < today
-              const isSunday = d.getDay() === 0
               const isSelected = date === selDate
-              const isToday  = date === todayStr
-              const off = isPast || isSunday
+              const isSunday   = d.getDay() === 0
+              const isPast     = d < today
               return (
-                <button key={date} disabled={off} onClick={() => setSelDate(date === selDate ? null : date)}
-                  className={`aspect-square flex items-center justify-center text-sm rounded-lg m-0.5 transition-all font-medium
+                <button key={date} disabled={isSunday || isPast} onClick={() => setSelDate(date === selDate ? null : date)}
+                  className={`aspect-square flex items-center justify-center text-sm rounded-lg transition-all
                     ${isSelected ? 'bg-[#D4AC0D] text-[#0D0D0D] font-bold' :
-                      isToday    ? 'bg-[#1A1500] border border-[#D4AC0D] text-[#D4AC0D]' :
-                      off        ? 'text-[#333] cursor-not-allowed' :
+                      isPast || isSunday ? 'text-[#333] cursor-not-allowed' :
                       'hover:bg-[#1A1500] text-[#F0EDE8] hover:text-[#D4AC0D]'}`}>
                   {i+1}
                 </button>
@@ -161,57 +183,53 @@ export default function BarberAgendaPage() {
           </div>
         </div>
 
-        {/* Gestion créneaux */}
+        {/* Détail jour */}
         {selDate && (
           <div>
-            <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase mb-3 capitalize">{selDateLabel}</p>
-
-            <div className="flex gap-2 mb-3">
-              <span className="bg-[#0A2A1E] text-[#1D9E75] text-xs font-medium px-3 py-1.5 rounded-full">{freeCount} libre{freeCount>1?'s':''}</span>
-              <span className="bg-[#1A1500] text-[#D4AC0D] text-xs font-medium px-3 py-1.5 rounded-full">{bookedCount} réservé{bookedCount>1?'s':''}</span>
-              <span className="bg-[#2A0A08] text-[#C0392B] text-xs font-medium px-3 py-1.5 rounded-full">{blockedCount} bloqué{blockedCount>1?'s':''}</span>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase capitalize">{selDateLabel}</p>
+              <div className="flex gap-2">
+                <button onClick={blockFullDay} className="text-xs text-[#C0392B] border border-[#C0392B] rounded-lg px-2 py-1 hover:bg-[#2A0A08] transition-colors">Tout bloquer</button>
+                <button onClick={unblockFullDay} className="text-xs text-[#1D9E75] border border-[#1D9E75] rounded-lg px-2 py-1 hover:bg-[#0A2A1E] transition-colors">Tout débloquer</button>
+              </div>
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <button onClick={blockFullDay}
-                className="flex-1 bg-[#C0392B] text-white rounded-xl py-2.5 text-xs font-semibold tracking-wide hover:bg-[#922B21] transition-colors">
-                Bloquer la journée
-              </button>
-              <button onClick={unblockFullDay}
-                className="flex-1 border border-[#1D9E75] text-[#1D9E75] rounded-xl py-2.5 text-xs font-semibold hover:bg-[#0A2A1E] transition-colors">
-                Débloquer tout
-              </button>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#1D9E75]">{freeCount}</p>
+                <p className="text-xs text-[#555]">Libres</p>
+              </div>
+              <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#D4AC0D]">{bookedCount}</p>
+                <p className="text-xs text-[#555]">Réservés</p>
+              </div>
+              <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#C0392B]">{blockedCount}</p>
+                <p className="text-xs text-[#555]">Bloqués</p>
+              </div>
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-4 border-[#D4AC0D] border-t-transparent rounded-full animate-spin" />
-              </div>
+              <div className="flex justify-center py-8"><div className="w-8 h-8 border-4 border-[#D4AC0D] border-t-transparent rounded-full animate-spin" /></div>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {slots.map(slot => (
-                  <button key={slot.time} onClick={() => toggleSlot(slot)} disabled={saving === slot.time}
-                    className={`rounded-xl p-3 text-center border-2 transition-all
-                      ${slot.isBooked  ? 'bg-[#1A1500] border-[#D4AC0D]/50 cursor-not-allowed' :
-                        slot.isBlocked ? 'bg-[#2A0A08] border-[#C0392B]/50 hover:border-[#C0392B]' :
-                        'bg-[#0A2A1E] border-[#1D9E75]/50 hover:border-[#1D9E75]'}`}>
-                    {saving === slot.time ? (
-                      <div className="w-4 h-4 border-2 border-[#D4AC0D] border-t-transparent rounded-full animate-spin mx-auto" />
-                    ) : (
-                      <>
-                        <p className={`font-bold text-sm ${slot.isBooked ? 'text-[#D4AC0D]' : slot.isBlocked ? 'text-[#C0392B]' : 'text-[#1D9E75]'}`}>
-                          {slot.time}
-                        </p>
-                        <p className="text-xs text-[#555] mt-0.5">
-                          {slot.isBooked ? 'Réservé' : slot.isBlocked ? 'Bloqué' : 'Libre'}
-                        </p>
-                      </>
-                    )}
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 gap-2 pb-8">
+                {slots.map(slot => {
+                  const isLoading = saving === slot.time
+                  return (
+                    <button key={slot.time} onClick={() => toggleSlot(slot)} disabled={slot.isBooked || isLoading}
+                      className={`py-3 rounded-xl text-sm font-semibold border transition-all
+                        ${slot.isBooked ? 'bg-[#1A1500] text-[#D4AC0D] border-[#D4AC0D]/30 cursor-not-allowed' :
+                          slot.isBlocked ? 'bg-[#2A0A08] text-[#C0392B] border-[#C0392B]/40' :
+                          'bg-[#1A1A1A] text-[#F0EDE8] border-[#2E2E2E] hover:border-[#D4AC0D]'}`}>
+                      {isLoading ? '...' : slot.time}
+                      <span className="block text-[10px] font-normal mt-0.5 opacity-70">
+                        {slot.isBooked ? 'Réservé' : slot.isBlocked ? 'Bloqué' : 'Libre'}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             )}
-            <p className="text-center text-xs text-[#333] mt-4">Appuyez sur un créneau pour le bloquer ou débloquer</p>
           </div>
         )}
       </div>

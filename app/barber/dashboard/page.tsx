@@ -13,8 +13,12 @@ interface Booking {
   client_name:  string | null
   client_phone: string | null
   client_email: string | null
+  barber_id: string
   service: { name: string; price_chf: number; duration_min: number }
+  barber?: { name: string }
 }
+
+interface BarberOption { id: string; name: string }
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'En attente', confirmed: 'Confirmé', cancelled: 'Annulé', done: 'Terminé',
@@ -38,8 +42,12 @@ function ds(d: Date) {
 
 export default function BarberDashboardPage() {
   const router = useRouter()
+  const [isAdmin, setIsAdmin]       = useState(false)
   const [barberId, setBarberId]     = useState<string | null>(null)
   const [barberName, setBarberName] = useState('Jampiero')
+  const [allBarbers, setAllBarbers] = useState<BarberOption[]>([])
+  const [selectedBarber, setSelectedBarber] = useState<string>('all') // 'all' | barber.id
+
   const [year, setYear]             = useState(new Date().getFullYear())
   const [month, setMonth]           = useState(new Date().getMonth())
   const [selDate, setSelDate]       = useState<string | null>(null)
@@ -49,34 +57,55 @@ export default function BarberDashboardPage() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/barber/login'); return }
-      const { data: barber } = await supabase.from('barbers').select('id, name').eq('profile_id', user.id).single()
-      if (barber) { setBarberId(barber.id); setBarberName(barber.name) }
+
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+
+      if (profile?.role === 'super_admin') {
+        setIsAdmin(true)
+        const { data: bs } = await supabase.from('barbers').select('id, name').order('name')
+        setAllBarbers((bs as any) ?? [])
+      } else {
+        const { data: barber } = await supabase.from('barbers').select('id, name').eq('profile_id', user.id).single()
+        if (barber) { setBarberId(barber.id); setBarberName(barber.name) }
+      }
     })
   }, [])
 
   const fetchMonthBookings = useCallback(async () => {
-    if (!barberId) return
     setLoadingMonth(true)
     const firstDay = `${year}-${String(month+1).padStart(2,'0')}-01`
     const lastDay  = `${year}-${String(month+1).padStart(2,'0')}-${new Date(year,month+1,0).getDate()}`
-    const { data } = await supabase.from('bookings')
-      .select(`id, date, slot_time, status, note, client_name, client_phone, client_email,
-        service:services(name, price_chf, duration_min)`)
-      .eq('barber_id', barberId).gte('date', firstDay).lte('date', lastDay)
+
+    let query = supabase.from('bookings')
+      .select(`id, date, slot_time, status, note, client_name, client_phone, client_email, barber_id,
+        service:services(name, price_chf, duration_min),
+        barber:barbers(name)`)
+      .gte('date', firstDay).lte('date', lastDay)
       .neq('status', 'cancelled').order('slot_time')
+
+    if (isAdmin) {
+      if (selectedBarber !== 'all') query = query.eq('barber_id', selectedBarber)
+    } else {
+      if (!barberId) { setLoadingMonth(false); return }
+      query = query.eq('barber_id', barberId)
+    }
+
+    const { data } = await query
     setMonthBookings((data as any) ?? [])
     setLoadingMonth(false)
-  }, [barberId, year, month])
-
-  useEffect(() => { fetchMonthBookings() }, [fetchMonthBookings])
+  }, [barberId, isAdmin, selectedBarber, year, month])
 
   useEffect(() => {
-    if (!barberId) return
-    const ch = supabase.channel(`dashboard:${barberId}`)
-      .on('postgres_changes', { event:'*', schema:'public', table:'bookings', filter:`barber_id=eq.${barberId}` }, fetchMonthBookings)
+    if (isAdmin || barberId) fetchMonthBookings()
+  }, [fetchMonthBookings, isAdmin, barberId])
+
+  useEffect(() => {
+    if (!isAdmin && !barberId) return
+    const ch = supabase.channel(`dashboard:${isAdmin ? 'admin' : barberId}`)
+      .on('postgres_changes', { event:'*', schema:'public', table:'bookings' }, fetchMonthBookings)
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [barberId, fetchMonthBookings])
+  }, [barberId, isAdmin, fetchMonthBookings])
 
   async function updateStatus(id: string, status: 'confirmed' | 'done' | 'cancelled') {
     const labels = { confirmed:'Confirmer', done:'Marquer terminé', cancelled:'Annuler' }
@@ -87,8 +116,11 @@ export default function BarberDashboardPage() {
       if (booking?.client_email) {
         await fetch('/api/send-cancellation', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientName: booking.client_name, clientEmail: booking.client_email,
-            barberName, serviceName: booking.service.name, date: booking.date, slot: booking.slot_time.slice(0,5) })
+          body: JSON.stringify({
+            clientName: booking.client_name, clientEmail: booking.client_email,
+            barberName: booking.barber?.name ?? barberName,
+            serviceName: booking.service.name, date: booking.date, slot: booking.slot_time.slice(0,5)
+          })
         })
       }
     }
@@ -105,7 +137,7 @@ export default function BarberDashboardPage() {
   const bookingsByDate: Record<string, Booking[]> = {}
   monthBookings.forEach(b => { if (!bookingsByDate[b.date]) bookingsByDate[b.date] = []; bookingsByDate[b.date].push(b) })
 
-  const dayBookings = selDate ? (bookingsByDate[selDate] ?? []) : []
+  const dayBookings   = selDate ? (bookingsByDate[selDate] ?? []) : []
   const totalMonth    = monthBookings.length
   const confirmedMonth = monthBookings.filter(b => b.status==='confirmed'||b.status==='done').length
   const revenueMonth  = monthBookings.filter(b => b.status==='confirmed'||b.status==='done').reduce((s,b)=>s+b.service.price_chf,0)
@@ -117,19 +149,40 @@ export default function BarberDashboardPage() {
         <div className="flex items-center justify-between">
           <p className="text-[#F0EDE8] italic text-lg font-bold" style={{ fontFamily: 'Georgia, serif' }}>Dashboard</p>
           <div className="flex gap-3">
+            {isAdmin && (
+              <button onClick={() => router.push('/barber/admin')}
+                className="text-[#D4AC0D] text-sm border border-[#D4AC0D] rounded-lg px-3 py-1.5 hover:bg-[#1A1500] transition-colors">
+                ⚙ Admin
+              </button>
+            )}
             <button onClick={() => router.push('/barber/agenda')}
               className="text-[#888] text-sm hover:text-[#D4AC0D] border border-[#2E2E2E] rounded-lg px-3 py-1.5 hover:border-[#D4AC0D] transition-colors">
               🗓 Agenda
             </button>
-            <button onClick={() => router.push('/barber/profile')}
-              className="text-[#888] text-sm hover:text-[#D4AC0D] border border-[#2E2E2E] rounded-lg px-3 py-1.5 hover:border-[#D4AC0D] transition-colors">
-              👤 Profil
-            </button>
+            {!isAdmin && (
+              <button onClick={() => router.push('/barber/profile')}
+                className="text-[#888] text-sm hover:text-[#D4AC0D] border border-[#2E2E2E] rounded-lg px-3 py-1.5 hover:border-[#D4AC0D] transition-colors">
+                👤 Profil
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4">
+
+        {/* Sélecteur coiffeur (admin only) */}
+        {isAdmin && (
+          <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4 mb-4">
+            <label className="text-xs text-[#D4AC0D] tracking-widest uppercase block mb-2">Vue</label>
+            <select value={selectedBarber} onChange={e => { setSelectedBarber(e.target.value); setSelDate(null) }}
+              className="w-full border border-[#2E2E2E] rounded-lg px-4 py-3 text-sm bg-[#0D0D0D] text-[#F0EDE8] outline-none focus:border-[#D4AC0D]">
+              <option value="all">Tous les coiffeurs</option>
+              {allBarbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           {[
@@ -220,6 +273,9 @@ export default function BarberDashboardPage() {
                         <p className="font-semibold text-[#F0EDE8] mt-1">{b.client_name ?? 'Client'}</p>
                         {b.client_phone && <p className="text-sm text-[#888]">📞 {b.client_phone}</p>}
                         {b.client_email && <p className="text-sm text-[#888]">✉ {b.client_email}</p>}
+                        {isAdmin && b.barber?.name && (
+                          <p className="text-xs text-[#D4AC0D] mt-1">✂ {b.barber.name}</p>
+                        )}
                       </div>
                       <span className={`text-xs font-semibold px-3 py-1 rounded-full ${STATUS_CLASS[b.status]}`}>
                         {STATUS_LABEL[b.status]}
