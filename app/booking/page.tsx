@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 interface Barber  { id: string; name: string }
 interface Service { id: string; name: string; duration_min: number; price_chf: number }
 
-const SLOTS  = ['09:00','10:00','11:00','12:00','14:00','15:00','16:00','17:00','18:00']
+const SLOTS  = ['09:00','9:30','10:00','11:00','12:00','14:00','15:00','16:00','17:00','18:00']
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
 
