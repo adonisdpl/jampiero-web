@@ -33,8 +33,8 @@ export async function POST(req: Request) {
           </table>
         </div>
         <p style="color:#7B7B7B;font-size:13px;line-height:1.6">En cas d'empêchement, contactez-nous le plus tôt possible :</p>
-        <p style="color:#7B7B7B;font-size:13px">📞 <a href="tel:+41220000000" style="color:#C0392B">+41 22 000 00 00</a></p>
-        <p style="color:#7B7B7B;font-size:13px">📍 12 Rue de Rive, 1204 Genève</p>
+        <p style="color:#7B7B7B;font-size:13px">📞 <a href="tel:077 213 23 10" style="color:#C0392B">077 213 23 10</a></p>
+        <p style="color:#7B7B7B;font-size:13px">📍 Rue de Lyon 14, 1201 Genève</p>
 
         <div style="border-top:1px solid #E8D5C4;margin-top:20px;padding-top:20px;text-align:center">
           <p style="color:#7B7B7B;font-size:12px;margin-bottom:12px">Besoin d'annuler votre rendez-vous ?</p>

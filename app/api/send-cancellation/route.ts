@@ -30,7 +30,7 @@ export async function POST(req: Request) {
           </table>
         </div>
         <p style="color:#7B7B7B;font-size:14px;line-height:1.6">N'hésitez pas à reprendre rendez-vous en ligne ou à nous contacter :</p>
-        <p style="color:#7B7B7B;font-size:13px">📞 <a href="tel:+41220000000" style="color:#C0392B">+41 22 000 00 00</a></p>
+        <p style="color:#7B7B7B;font-size:13px">📞 <a href="tel:077 213 23 10" style="color:#C0392B">077 213 23 10</a></p>
         <a href="https://jampiero-web.vercel.app/booking" style="display:inline-block;margin-top:16px;background:#C0392B;color:white;padding:12px 24px;border-radius:10px;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:1px">
           Reprendre rendez-vous →
         </a>

@@ -20,12 +20,10 @@ export default function HomePage() {
         <p className="text-white/80 text-sm max-w-xs mx-auto leading-relaxed">
           Le barbier de confiance de Genève — coupes précises, style latino, ambiance chaleureuse.
         </p>
-
-        {/* CTA principal */}
         <button
           onClick={() => router.push('/booking')}
           className="mt-8 bg-[#D4AC0D] text-white rounded-2xl px-10 py-4 text-sm font-bold tracking-widest uppercase hover:bg-[#9A7D0A] transition-colors shadow-sm">
-          Prendre un rendez-vous
+          Réserver un rendez-vous
         </button>
       </div>
 
@@ -36,9 +34,9 @@ export default function HomePage() {
           <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">🕐 Horaires d'ouverture</p>
           <div className="space-y-2.5">
             {[
-              { jour: 'Lundi — Vendredi', heure: '9h00 — 19h00', ouvert: true },
-              { jour: 'Samedi',           heure: '9h00 — 18h00', ouvert: true },
-              { jour: 'Dimanche',         heure: 'Fermé',         ouvert: false },
+              { jour: 'Lundi — Vendredi', heure: '10h00 — 20h00', ouvert: true },
+              { jour: 'Samedi',           heure: '09h00 — 19h00', ouvert: true },
+              { jour: 'Dimanche',         heure: 'Fermé',          ouvert: false },
             ].map(({ jour, heure, ouvert }) => (
               <div key={jour} className="flex justify-between items-center text-sm">
                 <span className="text-[#7B7B7B]">{jour}</span>
@@ -51,10 +49,10 @@ export default function HomePage() {
         {/* Adresse */}
         <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
           <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">📍 Nous trouver</p>
-          <p className="text-sm font-semibold text-[#2C2C2C] mb-1">12 Rue de Rive</p>
-          <p className="text-sm text-[#7B7B7B] mb-4">1204 Genève, Suisse</p>
+          <p className="text-sm font-semibold text-[#2C2C2C] mb-1">Rue de Lyon 14</p>
+          <p className="text-sm text-[#7B7B7B] mb-4">1201 Genève, Suisse</p>
           <a
-            href="https://maps.google.com/?q=12+Rue+de+Rive+1204+Genève"
+            href="https://maps.google.com/?q=Rue+de+Lyon+14+1201+Genève"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-xs font-semibold text-[#C0392B] border border-[#C0392B] rounded-xl px-4 py-2 hover:bg-[#FADBD8] transition-colors">
@@ -66,17 +64,17 @@ export default function HomePage() {
         <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5">
           <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">📞 Contact</p>
           <div className="space-y-3">
-            <a href="tel:+41220000000" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
-              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base">📞</span>
-              <span className="text-[#2C2C2C] font-medium">+41 22 000 00 00</span>
+            <a href="tel:+41772132310" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
+              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base flex-shrink-0">📞</span>
+              <span className="text-[#2C2C2C] font-medium">077 213 23 10</span>
             </a>
             <a href="mailto:info@jampiero.ch" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
-              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base">✉️</span>
+              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base flex-shrink-0">✉️</span>
               <span className="text-[#2C2C2C] font-medium">info@jampiero.ch</span>
             </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
-              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base">📸</span>
-              <span className="text-[#2C2C2C] font-medium">@jampiero.barbershop</span>
+            <a href="https://instagram.com/jampierobarbershop" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm hover:text-[#C0392B] transition-colors">
+              <span className="w-8 h-8 bg-[#FADBD8] rounded-full flex items-center justify-center text-base flex-shrink-0">📸</span>
+              <span className="text-[#2C2C2C] font-medium">@jampierobarbershop</span>
             </a>
           </div>
         </div>
@@ -111,7 +109,7 @@ export default function HomePage() {
       {/* Footer */}
       <div className="text-center py-8 border-t border-[#E8D5C4]">
         <p className="text-xs text-[#BDBDBD] tracking-widest mb-1">República Dominicana 🇩🇴 · Genève</p>
-        <a href="/barber/dashboard" className="text-xs text-[#BDBDBD] hover:text-[#C0392B] transition-colors">
+        <a href="/barber/login" className="text-xs text-[#BDBDBD] hover:text-[#C0392B] transition-colors">
           Espace coiffeur →
         </a>
       </div>
