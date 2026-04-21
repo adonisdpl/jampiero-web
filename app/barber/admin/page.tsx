@@ -28,8 +28,10 @@ export default function AdminPage() {
   const [error, setError]       = useState('')
 
   // Edition
-  const [editingId, setEditingId]     = useState<string | null>(null)
-  const [editName, setEditName]       = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName]   = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editError, setEditError] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -73,13 +75,34 @@ export default function AdminPage() {
     loadBarbers()
   }
 
-  async function saveEdit(b: Barber) {
-    await fetch('/api/admin/manage-barber', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barberId: b.id, profileId: b.profile_id, name: editName, requesterId: userId })
-    })
+  function startEdit(b: Barber) {
+    setEditingId(b.id)
+    setEditName(b.name)
+    setEditEmail(b.email)
+    setEditError('')
+  }
+
+  function cancelEdit() {
     setEditingId(null)
-    loadBarbers()
+    setEditError('')
+  }
+
+  async function saveEdit(b: Barber) {
+    setEditError('')
+    try {
+      const res = await fetch('/api/admin/manage-barber', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barberId: b.id, profileId: b.profile_id,
+          name: editName, email: editEmail,
+          requesterId: userId
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setEditingId(null)
+      loadBarbers()
+    } catch (e: any) { setEditError(e.message) }
   }
 
   async function deleteBarber(b: Barber) {
@@ -158,32 +181,47 @@ export default function AdminPage() {
           <div className="space-y-3">
             {barbers.map(b => (
               <div key={b.id} className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4">
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-start gap-3 mb-3">
                   <div className="w-10 h-10 rounded-full bg-[#1A1500] border-2 border-[#D4AC0D] flex items-center justify-center text-[#D4AC0D] font-bold flex-shrink-0">{b.name[0]}</div>
                   <div className="flex-1 min-w-0">
                     {editingId === b.id ? (
-                      <input value={editName} onChange={e => setEditName(e.target.value)}
-                        className="w-full border border-[#D4AC0D] rounded px-2 py-1 text-sm bg-[#0D0D0D] text-[#F0EDE8]" />
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs text-[#888] tracking-widest uppercase block mb-1">Nom</label>
+                          <input value={editName} onChange={e => setEditName(e.target.value)}
+                            className="w-full border border-[#D4AC0D] rounded px-2 py-1.5 text-sm bg-[#0D0D0D] text-[#F0EDE8] outline-none" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-[#888] tracking-widest uppercase block mb-1">Email</label>
+                          <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
+                            className="w-full border border-[#D4AC0D] rounded px-2 py-1.5 text-sm bg-[#0D0D0D] text-[#F0EDE8] outline-none" />
+                        </div>
+                        {editError && <p className="text-xs text-[#D4AC0D] bg-[#1A1500] border border-[#D4AC0D]/30 rounded px-2 py-1">{editError}</p>}
+                      </div>
                     ) : (
-                      <p className="font-semibold text-[#F0EDE8] truncate">{b.name}</p>
+                      <>
+                        <p className="font-semibold text-[#F0EDE8] truncate">{b.name}</p>
+                        <p className="text-xs text-[#888] truncate">{b.email}</p>
+                      </>
                     )}
-                    <p className="text-xs text-[#888] truncate">{b.email}</p>
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${b.active ? 'bg-[#0A2A1E] text-[#1D9E75]' : 'bg-[#2A0A08] text-[#C0392B]'}`}>
-                    {b.active ? 'Actif' : 'Inactif'}
-                  </span>
+                  {editingId !== b.id && (
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 ${b.active ? 'bg-[#0A2A1E] text-[#1D9E75]' : 'bg-[#2A0A08] text-[#C0392B]'}`}>
+                      {b.active ? 'Actif' : 'Inactif'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   {editingId === b.id ? (
                     <>
                       <button onClick={() => saveEdit(b)}
                         className="flex-1 bg-[#1D9E75] text-white rounded-lg py-2 text-xs font-semibold hover:bg-[#0F6E56] transition-colors">Enregistrer</button>
-                      <button onClick={() => setEditingId(null)}
+                      <button onClick={cancelEdit}
                         className="flex-1 border border-[#2E2E2E] text-[#888] rounded-lg py-2 text-xs hover:border-[#D4AC0D] transition-colors">Annuler</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setEditingId(b.id); setEditName(b.name) }}
+                      <button onClick={() => startEdit(b)}
                         className="flex-1 border border-[#2E2E2E] text-[#888] rounded-lg py-2 text-xs hover:border-[#D4AC0D] hover:text-[#D4AC0D] transition-colors">Modifier</button>
                       <button onClick={() => toggleActive(b)}
                         className="flex-1 border border-[#D4AC0D] text-[#D4AC0D] rounded-lg py-2 text-xs hover:bg-[#1A1500] transition-colors">

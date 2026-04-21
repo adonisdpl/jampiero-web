@@ -14,11 +14,12 @@ async function checkAdmin(requesterId: string) {
 
 // Modifier (PATCH)
 export async function PATCH(req: Request) {
-  const { barberId, profileId, name, active, requesterId } = await req.json()
+  const { barberId, profileId, name, email, active, requesterId } = await req.json()
   if (!await checkAdmin(requesterId)) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
 
   const updates: any = {}
   if (name !== undefined) updates.name = name
+  if (email !== undefined) updates.email = email
   if (active !== undefined) updates.active = active
 
   const { error } = await supabaseAdmin.from('barbers').update(updates).eq('id', barberId)
@@ -27,6 +28,13 @@ export async function PATCH(req: Request) {
   if (name && profileId) {
     await supabaseAdmin.from('profiles').update({ full_name: name }).eq('id', profileId)
   }
+
+  // Mettre à jour l'email dans Supabase Auth
+  if (email && profileId) {
+    const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(profileId, { email })
+    if (authErr) return NextResponse.json({ error: authErr.message }, { status: 400 })
+  }
+
   return NextResponse.json({ ok: true })
 }
 
