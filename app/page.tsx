@@ -84,12 +84,9 @@ export default function HomePage() {
           <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">✂ Nos prestations</p>
           <div className="space-y-2.5">
             {[
-              { name: 'Coupe homme',   price: '30 CHF' },
-              { name: 'Barbe',         price: '25 CHF' },
-              { name: 'Coupe + Barbe', price: '50 CHF' },
-              { name: 'Coupe femme',   price: '45 CHF' },
-              { name: 'Coloration',    price: 'dès 70 CHF' },
-              { name: 'Soin',          price: '35 CHF' },
+              { name: 'Coupe',            price: '30 CHF' },
+              { name: 'Coupe + Barbe',    price: '40 CHF' },
+              { name: 'Contours & Barbe', price: '20 CHF' },
             ].map(({ name, price }) => (
               <div key={name} className="flex justify-between items-center text-sm py-1 border-b border-[#F2E8DC] last:border-0">
                 <span className="text-[#2C2C2C]">{name}</span>
