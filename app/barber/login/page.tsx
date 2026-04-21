@@ -12,36 +12,42 @@ export default function BarberLoginPage() {
   const [error, setError]       = useState('')
   const [checking, setChecking] = useState(true)
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) {
-        const { data: profile } = await supabase
-          .from('profiles').select('role').eq('id', data.session.user.id).single()
-        if (profile?.role === 'barber') router.replace('/barber/dashboard')
-      }
-      setChecking(false)
-    })
-  }, [])
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setError(''); setLoading(true)
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
+useEffect(() => {
+  supabase.auth.getSession().then(async ({ data }) => {
+    if (data.session) {
       const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', data.user.id).single()
-      if (profile?.role !== 'barber') {
-        await supabase.auth.signOut()
-        throw new Error('Accès réservé aux coiffeurs.')
-      }
-      router.replace('/barber/dashboard')
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
+        .from('profiles').select('role').eq('id', data.session.user.id).single()
+      if (profile?.role === 'super_admin') router.replace('/barber/admin')
+      else if (profile?.role === 'barber') router.replace('/barber/dashboard')
     }
+    setChecking(false)
+  })
+}, [])
+
+async function handleLogin(e: React.FormEvent) {
+  e.preventDefault()
+  setError(''); setLoading(true)
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    const { data: profile } = await supabase
+      .from('profiles').select('role').eq('id', data.user.id).single()
+    if (profile?.role !== 'barber' && profile?.role !== 'super_admin') {
+      await supabase.auth.signOut()
+      throw new Error('Accès réservé aux coiffeurs.')
+    }
+    // Admin → page admin, barber → dashboard
+    if (profile?.role === 'super_admin') {
+      router.replace('/barber/admin')
+    } else {
+      router.replace('/barber/dashboard')
+    }
+  } catch (e: any) {
+    setError(e.message)
+  } finally {
+    setLoading(false)
   }
+}
 
   if (checking) return (
     <div className="min-h-screen flex items-center justify-center bg-[#0D0D0D]">
