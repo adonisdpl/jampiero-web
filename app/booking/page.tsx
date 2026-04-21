@@ -7,28 +7,30 @@ import { supabase } from '@/lib/supabase'
 interface Barber  { id: string; name: string }
 interface Service { id: string; name: string; duration_min: number; price_chf: number }
 
-// Créneaux selon le jour (lun-ven vs sam)
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const DAYS   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
+
+type Step = 'barber' | 'service' | 'calendar' | 'info' | 'done'
+
 function getSlotsForDate(dateStr: string): string[] {
-  const day = new Date(dateStr + 'T12:00').getDay() // 0=dim, 6=sam
-  if (day === 6) {
-    // Samedi : 09h00 - 19h00
-    return [
-      '09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30',
-      '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
-      '18:00','18:30'
-    ]
-  }
-  // Lundi - Vendredi : 10h00 - 20h00
+  const day = new Date(dateStr + 'T12:00').getDay()
+  if (day === 6) return [
+    '09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30',
+    '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30'
+  ]
   return [
     '10:00','10:30','11:00','11:30','12:00','12:30',
     '14:00','14:30','15:00','15:30','16:00','16:30',
     '17:00','17:30','18:00','18:30','19:00','19:30'
   ]
 }
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
-const DAYS   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
 
-type Step = 'barber' | 'service' | 'calendar' | 'info' | 'done'
+function ds(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 export default function BookingPage() {
   const router = useRouter()
@@ -51,71 +53,40 @@ export default function BookingPage() {
     setLoading(true); setError('')
     try {
       const { data, error } = await supabase.from('bookings').insert({
-        barber_id:    barber!.id,
-        service_id:   service!.id,
-        date,
-        slot_time:    slot + ':00',
-        status:       'pending',
-        client_name:  clientName,
-        client_phone: clientPhone,
-        client_email: clientEmail || null,
-        client_id:    null,
+        barber_id: barber!.id, service_id: service!.id,
+        date, slot_time: slot + ':00', status: 'pending',
+        client_name: clientName, client_phone: clientPhone,
+        client_email: clientEmail || null, client_id: null,
       }).select('id, cancel_token').single()
       if (error) throw error
 
-      // Email de confirmation client avec lien d'annulation
       if (clientEmail) {
         await fetch('/api/send-confirmation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientName,
-            clientEmail,
-            barberName:  barber!.name,
-            serviceName: service!.name,
-            date,
-            slot,
-            price:       service!.price_chf,
-            cancelToken: data.cancel_token,
-          })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientName, clientEmail, barberName: barber!.name,
+            serviceName: service!.name, date, slot, price: service!.price_chf, cancelToken: data.cancel_token })
         })
       }
 
-      // Notification email au coiffeur
-      const { data: barberData } = await supabase
-        .from('barbers').select('email').eq('id', barber!.id).single()
-
+      const { data: barberData } = await supabase.from('barbers').select('email').eq('id', barber!.id).single()
       if (barberData?.email) {
         await fetch('/api/send-barber-notification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            barberEmail:  barberData.email,
-            barberName:   barber!.name,
-            clientName,
-            clientPhone,
-            clientEmail:  clientEmail || null,
-            serviceName:  service!.name,
-            date,
-            slot,
-          })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ barberEmail: barberData.email, barberName: barber!.name,
+            clientName, clientPhone, clientEmail: clientEmail || null, serviceName: service!.name, date, slot })
         })
       }
-
       setStep('done')
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
+    } catch (e: any) { setError(e.message) }
+    finally { setLoading(false) }
   }
 
   if (step === 'done') return (
-    <div className="min-h-screen bg-[#FDF6EC] flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-20 h-20 bg-[#C0392B] rounded-full flex items-center justify-center text-4xl text-white mb-6">✓</div>
-      <h2 className="text-2xl font-bold text-[#2C2C2C] mb-2">Rendez-vous confirmé !</h2>
-      <p className="text-[#7B7B7B] text-sm mb-6">Nous avons hâte de vous accueillir, {clientName} !</p>
-      <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5 w-full max-w-sm mb-6 text-left space-y-3">
+    <div className="min-h-screen bg-[#0D0D0D] flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-20 h-20 bg-[#D4AC0D] rounded-full flex items-center justify-center text-4xl text-[#0D0D0D] mb-6">✓</div>
+      <h2 className="text-2xl font-bold text-[#F0EDE8] mb-2">Rendez-vous confirmé !</h2>
+      <p className="text-[#888] text-sm mb-6">Nous avons hâte de vous accueillir, {clientName} !</p>
+      <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-5 w-full max-w-sm mb-6 text-left space-y-3">
         {[
           { label: 'Coiffeur',   value: barber?.name },
           { label: 'Prestation', value: service?.name },
@@ -124,28 +95,19 @@ export default function BookingPage() {
           { label: 'Prix',       value: `${service?.price_chf} CHF` },
           { label: 'Téléphone',  value: clientPhone },
         ].map(({ label, value }) => (
-          <div key={label} className="flex justify-between text-sm border-b border-[#F2E8DC] pb-2 last:border-0">
-            <span className="text-[#7B7B7B]">{label}</span>
-            <span className="font-semibold text-[#2C2C2C]">{value}</span>
+          <div key={label} className="flex justify-between text-sm border-b border-[#2E2E2E] pb-2 last:border-0">
+            <span className="text-[#888]">{label}</span>
+            <span className="font-semibold text-[#F0EDE8]">{value}</span>
           </div>
         ))}
       </div>
-      {clientEmail && (
-        <p className="text-sm text-[#7B7B7B] mb-6">
-          Une confirmation a été envoyée à <span className="text-[#C0392B] font-medium">{clientEmail}</span>
-        </p>
-      )}
+      {clientEmail && <p className="text-sm text-[#888] mb-6">Confirmation envoyée à <span className="text-[#D4AC0D] font-medium">{clientEmail}</span></p>}
       <div className="flex flex-col gap-3 w-full max-w-sm">
-        <button onClick={() => router.push('/')}
-          className="w-full bg-[#C0392B] text-white rounded-xl py-3 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors">
+        <button onClick={() => router.push('/')} className="w-full bg-[#D4AC0D] text-[#0D0D0D] rounded-xl py-3 text-sm font-bold tracking-widest uppercase hover:bg-[#F0C93A] transition-colors">
           Retour à l'accueil
         </button>
-        <button onClick={() => {
-          setStep('barber'); setBarber(null); setService(null)
-          setDate(null); setSlot(null); setClientName('')
-          setClientPhone(''); setClientEmail('')
-        }}
-          className="w-full border border-[#E8D5C4] rounded-xl py-3 text-sm text-[#7B7B7B] hover:border-[#C0392B] hover:text-[#C0392B] transition-colors">
+        <button onClick={() => { setStep('barber'); setBarber(null); setService(null); setDate(null); setSlot(null); setClientName(''); setClientPhone(''); setClientEmail('') }}
+          className="w-full border border-[#2E2E2E] rounded-xl py-3 text-sm text-[#888] hover:border-[#D4AC0D] hover:text-[#D4AC0D] transition-colors">
           Nouvelle réservation
         </button>
       </div>
@@ -153,16 +115,15 @@ export default function BookingPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#FDF6EC]">
-      <div className="bg-[#C0392B] px-6 pt-6 pb-10">
+    <div className="min-h-screen bg-[#0D0D0D]">
+      <div className="bg-[#1A1A1A] border-b border-[#2E2E2E] px-6 pt-6 pb-10">
         <div className="max-w-lg mx-auto">
-          <button onClick={() => step === 'barber' ? router.push('/') : setStep(steps[stepIdx-1])}
-            className="text-white/80 text-sm mb-3 hover:text-white">← Retour</button>
-          <p className="text-white italic text-xl font-bold" style={{ fontFamily: 'Georgia, serif' }}>Réservation</p>
-          <p className="text-white/70 text-xs mt-1 mb-4">Sans compte · Sans mot de passe</p>
+          <button onClick={() => step === 'barber' ? router.push('/') : setStep(steps[stepIdx-1])} className="text-[#888] text-sm mb-3 hover:text-[#D4AC0D]">← Retour</button>
+          <p className="text-[#F0EDE8] italic text-xl font-bold" style={{ fontFamily: 'Georgia, serif' }}>Réservation</p>
+          <p className="text-[#555] text-xs mt-1 mb-4">Sans compte · Sans mot de passe</p>
           <div className="flex gap-2">
             {steps.map((s,i) => (
-              <div key={s} className={`flex-1 h-1 rounded-full transition-all ${i <= stepIdx ? 'bg-[#D4AC0D]' : 'bg-white/30'}`} />
+              <div key={s} className={`flex-1 h-1 rounded-full transition-all ${i <= stepIdx ? 'bg-[#D4AC0D]' : 'bg-[#2E2E2E]'}`} />
             ))}
           </div>
         </div>
@@ -176,43 +137,34 @@ export default function BookingPage() {
         )}
         {step === 'info' && (
           <div>
-            <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Vos coordonnées</p>
-            <div className="bg-[#FADBD8] border border-[#C0392B]/20 rounded-2xl p-4 mb-5 space-y-1.5">
-              <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Coiffeur</span><span className="font-medium">{barber?.name}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Prestation</span><span className="font-medium">{service?.name}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Date</span><span className="font-medium">{date && new Date(date+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'})}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Heure</span><span className="font-medium text-[#C0392B]">{slot}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#7B7B7B]">Prix</span><span className="font-bold text-[#C0392B]">{service?.price_chf} CHF</span></div>
+            <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase mb-4">Vos coordonnées</p>
+            <div className="bg-[#1A1500] border border-[#D4AC0D]/20 rounded-2xl p-4 mb-5 space-y-1.5">
+              <div className="flex justify-between text-sm"><span className="text-[#888]">Coiffeur</span><span className="font-medium text-[#F0EDE8]">{barber?.name}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#888]">Prestation</span><span className="font-medium text-[#F0EDE8]">{service?.name}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#888]">Date</span><span className="font-medium text-[#F0EDE8]">{date && new Date(date+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'})}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#888]">Heure</span><span className="font-medium text-[#D4AC0D]">{slot}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#888]">Prix</span><span className="font-bold text-[#D4AC0D]">{service?.price_chf} CHF</span></div>
             </div>
-            <div className="bg-white border border-[#E8D5C4] rounded-2xl p-5 mb-4 space-y-4">
+            <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-5 mb-4 space-y-4">
               <div>
-                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
-                  Prénom et nom <span className="text-[#C0392B]">*</span>
-                </label>
-                <input type="text" value={clientName} onChange={e => setClientName(e.target.value)}
-                  placeholder="Marie Dupont"
-                  className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
+                <label className="text-xs text-[#888] tracking-widest uppercase block mb-1.5">Prénom et nom <span className="text-[#D4AC0D]">*</span></label>
+                <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Marie Dupont"
+                  className="w-full border border-[#2E2E2E] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#D4AC0D] bg-[#0D0D0D] text-[#F0EDE8] placeholder-[#555] transition-colors" />
               </div>
               <div>
-                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
-                  Téléphone <span className="text-[#C0392B]">*</span>
-                </label>
-                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)}
-                  placeholder="+41 79 000 00 00"
-                  className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
+                <label className="text-xs text-[#888] tracking-widest uppercase block mb-1.5">Téléphone <span className="text-[#D4AC0D]">*</span></label>
+                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+41 79 000 00 00"
+                  className="w-full border border-[#2E2E2E] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#D4AC0D] bg-[#0D0D0D] text-[#F0EDE8] placeholder-[#555] transition-colors" />
               </div>
               <div>
-                <label className="text-xs text-[#7B7B7B] tracking-widest uppercase block mb-1.5">
-                  Email <span className="text-[#BDBDBD] font-normal normal-case">(optionnel — pour recevoir la confirmation)</span>
-                </label>
-                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)}
-                  placeholder="marie@email.com"
-                  className="w-full border border-[#E8D5C4] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#C0392B] bg-[#FDF6EC] transition-colors" />
+                <label className="text-xs text-[#888] tracking-widest uppercase block mb-1.5">Email <span className="text-[#555] font-normal normal-case">(optionnel — pour recevoir la confirmation)</span></label>
+                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="marie@email.com"
+                  className="w-full border border-[#2E2E2E] rounded-lg px-4 py-3 text-sm outline-none focus:border-[#D4AC0D] bg-[#0D0D0D] text-[#F0EDE8] placeholder-[#555] transition-colors" />
               </div>
             </div>
-            {error && <p className="text-sm text-[#C0392B] bg-[#FADBD8] rounded-xl px-4 py-2 mb-4">{error}</p>}
+            {error && <p className="text-sm text-[#D4AC0D] bg-[#1A1500] border border-[#D4AC0D]/30 rounded-xl px-4 py-2 mb-4">{error}</p>}
             <button onClick={confirm} disabled={loading}
-              className="w-full bg-[#C0392B] text-white rounded-xl py-3.5 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors disabled:opacity-60">
+              className="w-full bg-[#D4AC0D] text-[#0D0D0D] rounded-xl py-3.5 text-sm font-bold tracking-widest uppercase hover:bg-[#F0C93A] transition-colors disabled:opacity-50">
               {loading ? 'Envoi en cours...' : 'Confirmer le rendez-vous'}
             </button>
           </div>
@@ -231,15 +183,13 @@ function StepBarber({ onSelect }: { onSelect: (b: Barber) => void }) {
   }, [])
   return (
     <div>
-      <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Choisissez votre coiffeur</p>
+      <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase mb-4">Choisissez votre coiffeur</p>
       {loading ? <Spinner /> : barbers.map(b => (
         <button key={b.id} onClick={() => onSelect(b)}
-          className="w-full flex items-center gap-4 bg-white border border-[#E8D5C4] rounded-2xl p-4 mb-3 hover:border-[#C0392B] hover:bg-[#FADBD8] transition-all text-left">
-          <div className="w-12 h-12 rounded-full bg-[#FADBD8] border-2 border-[#C0392B] flex items-center justify-center text-[#C0392B] font-bold text-lg flex-shrink-0">
-            {b.name[0]}
-          </div>
-          <span className="font-medium text-[#2C2C2C] flex-1">{b.name}</span>
-          <span className="text-[#BDBDBD]">→</span>
+          className="w-full flex items-center gap-4 bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4 mb-3 hover:border-[#D4AC0D] hover:bg-[#1A1500] transition-all text-left">
+          <div className="w-12 h-12 rounded-full bg-[#1A1500] border-2 border-[#D4AC0D] flex items-center justify-center text-[#D4AC0D] font-bold text-lg flex-shrink-0">{b.name[0]}</div>
+          <span className="font-medium text-[#F0EDE8] flex-1">{b.name}</span>
+          <span className="text-[#555]">→</span>
         </button>
       ))}
     </div>
@@ -255,16 +205,16 @@ function StepService({ onSelect }: { onSelect: (s: Service) => void }) {
   }, [])
   return (
     <div>
-      <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Choisissez une prestation</p>
+      <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase mb-4">Choisissez une prestation</p>
       {loading ? <Spinner /> : services.map(sv => (
         <button key={sv.id} onClick={() => onSelect(sv)}
-          className="w-full flex items-center gap-4 bg-white border border-[#E8D5C4] rounded-2xl p-4 mb-3 hover:border-[#C0392B] hover:bg-[#FADBD8] transition-all text-left">
+          className="w-full flex items-center gap-4 bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4 mb-3 hover:border-[#D4AC0D] hover:bg-[#1A1500] transition-all text-left">
           <div className="flex-1">
-            <p className="font-medium text-[#2C2C2C]">{sv.name}</p>
-            <p className="text-sm text-[#7B7B7B] mt-0.5">{sv.duration_min} min</p>
+            <p className="font-medium text-[#F0EDE8]">{sv.name}</p>
+            <p className="text-sm text-[#888] mt-0.5">{sv.duration_min} min</p>
           </div>
-          <span className="text-[#C0392B] font-bold">{sv.price_chf} CHF</span>
-          <span className="text-[#BDBDBD]">→</span>
+          <span className="text-[#D4AC0D] font-bold">{sv.price_chf} CHF</span>
+          <span className="text-[#555]">→</span>
         </button>
       ))}
     </div>
@@ -279,12 +229,6 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
   const [selSlot, setSelSlot] = useState<string | null>(null)
   const [taken, setTaken]     = useState<string[]>([])
   const [loadingSlots, setLS] = useState(false)
-  const ds = (d: Date) => {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
   async function pickDate(d: Date) {
     const s = ds(d); setSelDate(s); setSelSlot(null); setLS(true)
@@ -301,17 +245,15 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
 
   return (
     <div>
-      <p className="text-xs font-semibold text-[#C0392B] tracking-widest uppercase mb-4">Choisissez une date</p>
-      <div className="bg-white border border-[#E8D5C4] rounded-2xl p-4 mb-4">
+      <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase mb-4">Choisissez une date</p>
+      <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => { month===0?(setMonth(11),setYear(y=>y-1)):setMonth(m=>m-1); setSelDate(null) }}
-            className="text-[#C0392B] text-xl px-2 hover:bg-[#FADBD8] rounded-lg">←</button>
-          <span className="font-semibold text-[#2C2C2C]">{MONTHS[month]} {year}</span>
-          <button onClick={() => { month===11?(setMonth(0),setYear(y=>y+1)):setMonth(m=>m+1); setSelDate(null) }}
-            className="text-[#C0392B] text-xl px-2 hover:bg-[#FADBD8] rounded-lg">→</button>
+          <button onClick={() => { month===0?(setMonth(11),setYear(y=>y-1)):setMonth(m=>m-1); setSelDate(null) }} className="text-[#D4AC0D] text-xl px-2 hover:bg-[#1A1500] rounded-lg">←</button>
+          <span className="font-semibold text-[#F0EDE8]">{MONTHS[month]} {year}</span>
+          <button onClick={() => { month===11?(setMonth(0),setYear(y=>y+1)):setMonth(m=>m+1); setSelDate(null) }} className="text-[#D4AC0D] text-xl px-2 hover:bg-[#1A1500] rounded-lg">→</button>
         </div>
         <div className="grid grid-cols-7 mb-2">
-          {DAYS.map(d => <div key={d} className="text-center text-xs text-[#7B7B7B] py-1">{d}</div>)}
+          {DAYS.map(d => <div key={d} className="text-center text-xs text-[#555] py-1">{d}</div>)}
         </div>
         <div className="grid grid-cols-7">
           {Array(firstDow).fill(null).map((_,i) => <div key={'e'+i} />)}
@@ -321,7 +263,7 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
             return (
               <button key={s} disabled={off} onClick={() => pickDate(d)}
                 className={`aspect-square flex items-center justify-center text-sm rounded-lg m-0.5 transition-all
-                  ${sel ? 'bg-[#C0392B] text-white font-bold' : off ? 'text-[#BDBDBD] cursor-not-allowed' : 'hover:bg-[#FADBD8] text-[#2C2C2C]'}`}>
+                  ${sel ? 'bg-[#D4AC0D] text-[#0D0D0D] font-bold' : off ? 'text-[#333] cursor-not-allowed' : 'hover:bg-[#1A1500] text-[#F0EDE8] hover:text-[#D4AC0D]'}`}>
                 {i+1}
               </button>
             )
@@ -330,17 +272,17 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
       </div>
       {selDate && (
         <div>
-          <p className="text-xs font-semibold text-[#C0392B] tracking-widests uppercase mb-3">Créneaux disponibles</p>
+          <p className="text-xs font-semibold text-[#D4AC0D] tracking-widest uppercase mb-3">Créneaux disponibles</p>
           {loadingSlots ? <Spinner /> : (
             <div className="flex flex-wrap gap-2 mb-4">
-              {getSlotsForDate(selDate!).map(s => {
+              {getSlotsForDate(selDate).map(s => {
                 const isTaken = taken.includes(s), isSel = s===selSlot
                 return (
                   <button key={s} disabled={isTaken} onClick={() => setSelSlot(s)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all
-                      ${isSel ? 'bg-[#C0392B] text-white border-[#C0392B]' :
-                        isTaken ? 'bg-[#F2E8DC] text-[#BDBDBD] border-[#E8D5C4] line-through cursor-not-allowed' :
-                        'bg-white text-[#2C2C2C] border-[#E8D5C4] hover:border-[#C0392B]'}`}>
+                      ${isSel ? 'bg-[#D4AC0D] text-[#0D0D0D] border-[#D4AC0D]' :
+                        isTaken ? 'bg-[#1A1A1A] text-[#333] border-[#2E2E2E] line-through cursor-not-allowed' :
+                        'bg-[#1A1A1A] text-[#F0EDE8] border-[#2E2E2E] hover:border-[#D4AC0D] hover:text-[#D4AC0D]'}`}>
                     {s}
                   </button>
                 )
@@ -349,7 +291,7 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
           )}
           {selSlot && (
             <button onClick={() => onSelect(selDate, selSlot)}
-              className="w-full bg-[#C0392B] text-white rounded-xl py-3 text-sm font-semibold tracking-widest uppercase hover:bg-[#922B21] transition-colors">
+              className="w-full bg-[#D4AC0D] text-[#0D0D0D] rounded-xl py-3 text-sm font-bold tracking-widest uppercase hover:bg-[#F0C93A] transition-colors">
               Continuer →
             </button>
           )}
@@ -362,7 +304,7 @@ function StepCalendar({ barberId, onSelect }: { barberId: string; onSelect: (dat
 function Spinner() {
   return (
     <div className="flex justify-center py-8">
-      <div className="w-8 h-8 border-4 border-[#C0392B] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-[#D4AC0D] border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }
