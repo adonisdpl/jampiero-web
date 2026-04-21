@@ -1,23 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --red: #C0392B;
-  --red-dark: #922B21;
-  --red-light: #FADBD8;
-  --gold: #D4AC0D;
-  --gold-light: #FCF3CF;
-  --cream: #FDF6EC;
+  --gold:   #D4AC0D;
+  --gold2:  #F0C93A;
+  --dark:   #0D0D0D;
+  --dark2:  #1A1A1A;
+  --dark3:  #242424;
+  --border: #2E2E2E;
+  --text:   #F0EDE8;
+  --muted:  #888888;
 }
 
 body {
-  background-color: var(--cream);
-  color: #2C2C2C;
+  background-color: var(--dark);
+  color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #E8D5C4; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #2E2E2E; border-radius: 4px; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
