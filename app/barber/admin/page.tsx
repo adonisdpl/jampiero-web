@@ -51,6 +51,12 @@ export default function AdminPage() {
     setLoading(false)
   }
 
+  async function logout() {
+    if (!confirm('Se déconnecter ?')) return
+    await supabase.auth.signOut()
+    router.replace('/barber/login')
+  }
+
   async function createBarber(e: React.FormEvent) {
     e.preventDefault()
     setError(''); setSubmitting(true)
@@ -123,15 +129,21 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-[#0D0D0D]">
       <div className="bg-[#1A1A1A] border-b border-[#2E2E2E] px-6 pt-6 pb-5">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-[#D4AC0D] text-xs tracking-widest uppercase">Admin</p>
-            <p className="text-[#F0EDE8] italic text-lg font-bold" style={{ fontFamily: 'Georgia, serif' }}>Gestion des coiffeurs</p>
+            <p className="text-[#F0EDE8] italic text-lg font-bold truncate" style={{ fontFamily: 'Georgia, serif' }}>Gestion des coiffeurs</p>
           </div>
-          <button onClick={() => router.push('/barber/dashboard')}
-            className="text-[#888] text-sm hover:text-[#D4AC0D] border border-[#2E2E2E] rounded-lg px-3 py-1.5 hover:border-[#D4AC0D] transition-colors">
-            ← Dashboard
-          </button>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={() => router.push('/barber/dashboard')}
+              className="text-[#888] text-sm hover:text-[#D4AC0D] border border-[#2E2E2E] rounded-lg px-3 py-1.5 hover:border-[#D4AC0D] transition-colors">
+              ← Dashboard
+            </button>
+            <button onClick={logout}
+              className="text-[#C0392B] text-sm border border-[#C0392B] rounded-lg px-3 py-1.5 hover:bg-[#2A0A08] transition-colors">
+              ⏻ Déconnexion
+            </button>
+          </div>
         </div>
       </div>
 
